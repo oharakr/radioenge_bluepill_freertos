@@ -6,7 +6,7 @@ extern osTimerId_t PeriodicSendTimerHandle;
 extern osThreadId_t AppSendTaskHandle;
 extern ADC_HandleTypeDef hadc1;
 extern osEventFlagsId_t ModemStatusFlagsHandle;
-extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim1, htim3;
 
 typedef struct
 {
@@ -24,7 +24,8 @@ void LoRaWAN_RxEventCallback(uint8_t *data, uint32_t length, uint32_t port, int3
 {
     AC_CONTROLLER_OBJ_t rcv_data;
     rcv_data = *((AC_CONTROLLER_OBJ_t *) data);
-    htim3.Instance->CCR2 = (htim3.Instance->ARR*(rcv_data.compressor_power))/100;
+    htim1.Instance->CCR1 = (htim3.Instance->ARR*(rcv_data.compressor_power))/100;
+    htim3.Instance->CCR3 = (htim3.Instance->ARR*(rcv_data.compressor_power))/100;
 }
 
 void PeriodicSendTimerCallback(void *argument)
