@@ -307,7 +307,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
   /* USER CODE END 2 */
 
@@ -559,8 +559,8 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-  sConfigOC.Pulse = 7200-1;
+  sConfigOC.OCMode = TIM_OCMODE_INACTIVE;
+  sConfigOC.Pulse = 720-1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -570,7 +570,6 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  __HAL_TIM_ENABLE_OCxPRELOAD(&htim1, TIM_CHANNEL_1);
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
@@ -760,7 +759,29 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+extern AC_CONTROLLER_OBJ_t rcv_data;
+HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if(htim==&htim1)
+  {
+    if (htim1.Instance->CCR1 == (htim1.Instance->ARR *(rcv_data.compressor_power/2))/100)
+    {
+      /* Reset the Output Compare Mode Bits */
+      htim1.Instance->CCMR1 &= ~TIM_CCMR1_OC1M;
+      /* Set */
+      htim1.Instance->CCMR1 |= TIM_OCMODE_ACTIVE;
+      htim1.Instance->CCR1 = (htim1.Instance->ARR * (100-rcv_data.compressor_power/2)) / 100;
+    }
+    else
+    {
+      /* Reset the Output Compare Mode Bits */
+      htim1.Instance->CCMR1 &= ~TIM_CCMR1_OC1M;
+      /* Set */
+      htim1.Instance->CCMR1 |= TIM_OCMODE_INACTIVE;
+      htim1.Instance->CCR1 = (htim1.Instance->ARR *(rcv_data.compressor_power/2)) / 100;
+    }
+  }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
