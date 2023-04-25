@@ -121,6 +121,18 @@ const osThreadAttr_t AppSendTask_attributes = {
   .stack_size = sizeof(SendTemperatureBuffer),
   .priority = (osPriority_t) osPriorityLow7,
 };
+/* Definitions for setPWMDutyTask */
+osThreadId_t setPWMDutyTaskHandle;
+uint32_t setPWMDutyTaskBuffer[ 256 ];
+osStaticThreadDef_t setPWMDutyTaskControlBlock;
+const osThreadAttr_t setPWMDutyTask_attributes = {
+  .name = "setPWMDutyTask",
+  .cb_mem = &setPWMDutyTaskControlBlock,
+  .cb_size = sizeof(setPWMDutyTaskControlBlock),
+  .stack_mem = &setPWMDutyTaskBuffer[0],
+  .stack_size = sizeof(setPWMDutyTaskBuffer),
+  .priority = (osPriority_t) osPriorityLow7,
+};
 /* Definitions for uartQueue */
 osMessageQueueId_t uartQueueHandle;
 uint8_t uartQueueBuffer[ 4 * sizeof( void* ) ];
@@ -153,6 +165,17 @@ const osMessageQueueAttr_t ModemSendQueue_attributes = {
   .cb_size = sizeof(ModemSendQueueControlBlock),
   .mq_mem = &ModemSendQueueBuffer,
   .mq_size = sizeof(ModemSendQueueBuffer)
+};
+/* Definitions for setPWMDutyQueue */
+osMessageQueueId_t setPWMDutyQueueHandle;
+uint8_t setPWMDutyQueueBuffer[ 4 * sizeof( void* ) ];
+osStaticMessageQDef_t setPWMDutyQueueControlBlock;
+const osMessageQueueAttr_t setPWMDutyQueue_attributes = {
+  .name = "setPWMDutyQueue",
+  .cb_mem = &setPWMDutyQueueControlBlock,
+  .cb_size = sizeof(setPWMDutyQueueControlBlock),
+  .mq_mem = &setPWMDutyQueueBuffer,
+  .mq_size = sizeof(setPWMDutyQueueBuffer)
 };
 /* Definitions for PeriodicSendTimer */
 osTimerId_t PeriodicSendTimerHandle;
@@ -244,6 +267,7 @@ extern void ATHandlingTaskCode(void *argument);
 extern void UARTProcTaskCode(void *argument);
 extern void ModemManagerTaskCode(void *argument);
 extern void AppSendTaskCode(void *argument);
+extern void setPWMDutyTaskCode(void *argument);
 extern void PeriodicSendTimerCallback(void *argument);
 extern void ModemLedCallback(void *argument);
 extern void DutyCycleTimerCallback(void *argument);
@@ -362,6 +386,9 @@ int main(void)
   /* creation of ModemSendQueue */
   ModemSendQueueHandle = osMessageQueueNew (4, sizeof(void*), &ModemSendQueue_attributes);
 
+  /* creation of setPWMDutyQueue */
+  setPWMDutyQueueHandle = osMessageQueueNew (4, sizeof(void*), &setPWMDutyQueue_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -384,6 +411,9 @@ int main(void)
 
   /* creation of AppSendTask */
   AppSendTaskHandle = osThreadNew(AppSendTaskCode, NULL, &AppSendTask_attributes);
+
+  /* creation of setPWMDutyTask */
+  setPWMDutyTaskHandle = osThreadNew(setPWMDutyTaskCode, NULL, &setPWMDutyTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -759,18 +789,18 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-extern AC_CONTROLLER_OBJ_t rcv_data;
+extern AC_CONTROLLER_OBJ_t ocPWM_data;
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if(htim==&htim1)
   {
-    if (htim1.Instance->CCR1 == (htim1.Instance->ARR *(rcv_data.compressor_power/2))/100)
+    if (htim1.Instance->CCR1 == (htim1.Instance->ARR *(ocPWM_data.compressor_power/2))/100)
     {
       /* Reset the Output Compare Mode Bits */
       htim1.Instance->CCMR1 &= ~TIM_CCMR1_OC1M;
       /* Set */
       htim1.Instance->CCMR1 |= TIM_OCMODE_ACTIVE;
-      htim1.Instance->CCR1 = (htim1.Instance->ARR * (100-rcv_data.compressor_power/2)) / 100;
+      htim1.Instance->CCR1 = (htim1.Instance->ARR * (100-ocPWM_data.compressor_power/2)) / 100;
     }
     else
     {
@@ -778,7 +808,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
       htim1.Instance->CCMR1 &= ~TIM_CCMR1_OC1M;
       /* Set */
       htim1.Instance->CCMR1 |= TIM_OCMODE_INACTIVE;
-      htim1.Instance->CCR1 = (htim1.Instance->ARR *(rcv_data.compressor_power/2)) / 100;
+      htim1.Instance->CCR1 = (htim1.Instance->ARR *(ocPWM_data.compressor_power/2)) / 100;
     }
   }
 }

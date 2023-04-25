@@ -8,14 +8,13 @@ extern osThreadId_t AppSendTaskHandle;
 extern ADC_HandleTypeDef hadc1;
 extern osEventFlagsId_t ModemStatusFlagsHandle;
 extern TIM_HandleTypeDef htim1, htim3;
-AC_CONTROLLER_OBJ_t rcv_data;
+extern osMessageQueueId_t setPWMDutyQueueHandle;
+AC_CONTROLLER_OBJ_t ocPWM_data;
 
 
 void LoRaWAN_RxEventCallback(uint8_t *data, uint32_t length, uint32_t port, int32_t rssi, int32_t snr)
 {
-    rcv_data = *((AC_CONTROLLER_OBJ_t *) data);
-    //htim1.Instance->CCR1 = (htim3.Instance->ARR*(rcv_data.compressor_power))/100;
-    htim3.Instance->CCR3 = (htim3.Instance->ARR*(rcv_data.compressor_power))/100;
+    osMessageQueuePut(setPWMDutyQueueHandle, data, 0U, 0U);
 }
 
 void PeriodicSendTimerCallback(void *argument)
@@ -44,5 +43,20 @@ void AppSendTaskCode(void *argument)
         temp.seq_no++;
         osThreadFlagsClear(0x01);
         osThreadFlagsWait(0x01, osFlagsWaitAny, osWaitForever);
+    }
+}
+
+void setPWMDutyTaskCode(void *argument)
+{
+    AC_CONTROLLER_OBJ_t *data;
+    osStatus_t pwmEvent; 
+    while(1)
+    {
+        pwmEvent = osMessageQueueGet(setPWMDutyQueueHandle, &data, NULL, osWaitForever);   // wait for message
+        if (pwmEvent == osOK)
+        {
+            memcpy(&ocPWM_data,&data,sizeof(AC_CONTROLLER_OBJ_t));
+            htim3.Instance->CCR3 = (htim3.Instance->ARR*(ocPWM_data.compressor_power))/100;
+        }
     }
 }
