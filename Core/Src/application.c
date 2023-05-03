@@ -48,7 +48,7 @@ void AppSendTaskCode(void *argument)
 
 void setPWMDutyTaskCode(void *argument)
 {
-    AC_CONTROLLER_OBJ_t *data,pwmData;
+    AC_CONTROLLER_OBJ_t *data;
     osStatus_t pwmEvent; 
     while(1)
     {
